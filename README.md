@@ -69,3 +69,7 @@ Current tests cover the most important scheduler behaviors: basic task completio
 Confidence Level: ★★★★☆ (4/5)
 
 Why 4/5: all implemented tests are currently passing, including the new sorting, recurrence, and conflict checks. The system looks reliable for core workflows, but there is still room to expand edge-case coverage (for example, invalid time formats, recurrence with missing dates, and additional multi-pet scenarios).
+
+## 📸 Demo
+
+<a href="/assets/screenshot_1.png" target="_blank"><img src='/assets/screenshot_1.png' title='PawPal App' width='' alt='PawPal App' class='center-block' /></a>
