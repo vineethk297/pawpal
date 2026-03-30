@@ -4,8 +4,13 @@
 
 **a. Initial design**
 
-- Briefly describe your initial UML design.
-- What classes did you include, and what responsibilities did you assign to each?
+My initial UML design focused on three core user actions the app needs to support end to end.
+
+First, the user should be able to enter owner and pet information, so I planned profile-oriented classes to store basic owner identity, pet identity, and lightweight preferences that affect planning.
+
+Second, the user should be able to create and manage care tasks, so I included a task model responsible for task name, estimated duration, and priority. I treated this as the central unit of scheduling input.
+
+Third, the user should be able to generate a daily care plan and understand why it was produced, so I designed a scheduler/planner component that selects and orders tasks under constraints, plus an explanation-oriented output that makes decisions transparent to the user.
 
 **b. Design changes**
 
