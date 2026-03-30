@@ -107,13 +107,24 @@ The design philosophy: **Make it correct first, simple second, fast third.** Pre
 
 **a. How you used AI**
 
-- How did you use AI tools during this project (for example: design brainstorming, debugging, refactoring)?
-- What kinds of prompts or questions were most helpful?
+I used VS Code Copilot most for three things: brainstorming class design, generating method skeletons quickly, and debugging small issues (like time math and Streamlit session state behavior).
+
+The most effective Copilot features were:
+- Chat for design iteration (UML to code shape)
+- Inline code suggestions for repetitive dataclass/method structure
+- Quick fix-style guidance when logic or UI wiring broke
+
+The most helpful prompts were concrete and specific, like: "implement rank_tasks with mandatory/high/medium/low ordering" or "connect session_state so Owner persists across reruns." Specific prompts gave much better results than broad ones.
 
 **b. Judgment and verification**
 
-- Describe one moment where you did not accept an AI suggestion as-is.
-- How did you evaluate or verify what the AI suggested?
+One suggestion I rejected was adding extra architecture layers (like a separate repository/explainer abstraction) too early. I kept the design lean with the five core classes because that matched the project scope and was easier to test.
+
+I verified AI suggestions by running the app, checking edge behavior (unscheduled tasks/conflicts), and running tests. If a suggestion made the code harder to reason about, I simplified it.
+
+Using separate chat sessions by phase helped a lot: one for UML/design, one for implementation, one for UI integration, and one for reflection polish. It kept context clean and reduced "scope drift" between tasks.
+
+My biggest takeaway: with strong AI tools, I still had to act as the lead architect. Copilot can generate options fast, but I had to choose what to keep, what to cut, and what actually fit the product goals.
 
 ---
 
