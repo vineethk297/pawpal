@@ -188,6 +188,7 @@ class DailyPlan:
 
 class Scheduler:
     def __init__(self, ranking_strategy: str = "priority_first") -> None:
+        """Initialize scheduler with a ranking strategy."""
         self.ranking_strategy = ranking_strategy
 
     def generate_plan(self, tasks: list[CareTask], available_minutes: int, owner: Owner, pet: Pet, plan_date: date) -> DailyPlan:
