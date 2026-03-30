@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date, time
+from datetime import date, time, timedelta
+import time as time_module
 from typing import Any
 
 
@@ -37,6 +38,56 @@ class Owner:
         for pet in self.pets:
             all_tasks.extend(pet.tasks)
         return all_tasks
+    
+    def filter_tasks_by_completion(self, completed: bool = False) -> list[CareTask]:
+        """Filter all tasks by completion status.
+        
+        Args:
+            completed: If True, return completed tasks. If False, return incomplete tasks.
+        
+        Returns:
+            List of tasks matching the completion status.
+        """
+        return [task for task in self.get_all_tasks() if task.is_completed == completed]
+    
+    def filter_tasks_by_pet_name(self, pet_name: str) -> list[CareTask]:
+        """Filter tasks belonging to a specific pet by name.
+        
+        Args:
+            pet_name: Name of the pet to filter by.
+        
+        Returns:
+            List of tasks for the specified pet, or empty list if pet not found.
+        """
+        pet_name_lower = pet_name.lower().strip()
+        for pet in self.pets:
+            if pet.name.lower() == pet_name_lower:
+                return pet.tasks
+        return []
+    
+    def filter_tasks(self, pet_name: str | None = None, completed: bool | None = None) -> list[CareTask]:
+        """Filter tasks by pet name and/or completion status.
+        
+        Args:
+            pet_name: (Optional) Filter by pet name. If None, includes all pets.
+            completed: (Optional) Filter by completion status (True/False). If None, includes all statuses.
+        
+        Returns:
+            List of tasks matching the specified criteria.
+        
+        Example:
+            >>> owner.filter_tasks(pet_name="Mochi", completed=False)
+            # Returns incomplete tasks for Mochi
+        """
+        if pet_name:
+            tasks = self.filter_tasks_by_pet_name(pet_name)
+        else:
+            tasks = self.get_all_tasks()
+        
+        if completed is not None:
+            tasks = [task for task in tasks if task.is_completed == completed]
+        
+        return tasks
     
     def get_pet_by_id(self, pet_id: str) -> Pet | None:
         """Find a pet by ID."""
@@ -99,6 +150,7 @@ class CareTask:
     due_window_end: time | None = None
     is_mandatory: bool = False
     is_completed: bool = False
+    frequency: str = "one-time"  # NEW: "one-time", "daily", or "weekly"
 
     def validate(self) -> bool:
         """Validate that the task has valid attributes."""
@@ -123,6 +175,107 @@ class CareTask:
     def mark_completed(self) -> None:
         """Mark this task as completed."""
         self.is_completed = True
+
+    def mark_completed_recurring(self, pet: Pet) -> CareTask | None:
+        """Mark task complete and auto-create next occurrence if recurring.
+        
+        For recurring tasks (daily/weekly), this method:
+        1. Marks the current task as complete
+        2. Creates a new task instance with:
+           - Same properties (title, category, duration_minutes, priority, is_mandatory, frequency)
+           - New due_date calculated based on frequency (today + 1 day for daily, today + 7 for weekly)
+           - Same due_window_start and due_window_end
+           - New task_id with timestamp suffix for uniqueness
+           - is_completed reset to False
+        3. Automatically adds the new task to the pet's task list
+        4. Returns the new CareTask or None if not recurring
+        
+        Args:
+            pet: The Pet object that owns this task (needed to add next occurrence to pet.tasks)
+        
+        Returns:
+            New CareTask instance if recurring, None if one-time task
+        
+        Example:
+            >>> daily_task = CareTask(task_id="feed_1", title="Morning Feed", frequency="daily", ...)
+            >>> next_task = daily_task.mark_completed_recurring(mochi_pet)
+            >>> next_task.due_date  # Tomorrow's date
+        """
+        self.is_completed = True
+        
+        if self.frequency == "one-time":
+            return None
+        
+        # Calculate next due date using timedelta
+        if self.frequency == "daily":
+            next_due_date = self.due_date + timedelta(days=1) if self.due_date else date.today() + timedelta(days=1)
+        elif self.frequency == "weekly":
+            next_due_date = self.due_date + timedelta(days=7) if self.due_date else date.today() + timedelta(days=7)
+        else:
+            return None  # Unknown frequency
+        
+        # Generate unique task_id with timestamp
+        timestamp = time_module.strftime("%Y%m%d_%H%M%S")
+        new_task_id = f"{self.task_id}_recur_{timestamp}"
+        
+        # Create new task instance
+        next_task = CareTask(
+            task_id=new_task_id,
+            title=self.title,
+            category=self.category,
+            duration_minutes=self.duration_minutes,
+            priority=self.priority,
+            due_date=next_due_date,
+            due_window_start=self.due_window_start,
+            due_window_end=self.due_window_end,
+            is_mandatory=self.is_mandatory,
+            is_completed=False,
+            frequency=self.frequency
+        )
+        
+        # Automatically add to pet's task list
+        pet.add_task(next_task)
+        
+        return next_task
+
+    def generate_next_occurrence(self) -> CareTask | None:
+        """Generate the next task occurrence without marking current task complete.
+        
+        Useful for previewing or manually scheduling the next occurrence.
+        For automatic handling, use mark_completed_recurring() instead.
+        
+        Returns:
+            New CareTask instance if recurring, None if one-time task
+        """
+        if self.frequency == "one-time":
+            return None
+        
+        # Calculate next due date
+        if self.frequency == "daily":
+            next_due_date = self.due_date + timedelta(days=1) if self.due_date else date.today() + timedelta(days=1)
+        elif self.frequency == "weekly":
+            next_due_date = self.due_date + timedelta(days=7) if self.due_date else date.today() + timedelta(days=7)
+        else:
+            return None
+        
+        # Generate unique task_id
+        timestamp = time_module.strftime("%Y%m%d_%H%M%S")
+        new_task_id = f"{self.task_id}_next_{timestamp}"
+        
+        # Create and return new task (not added to pet)
+        return CareTask(
+            task_id=new_task_id,
+            title=self.title,
+            category=self.category,
+            duration_minutes=self.duration_minutes,
+            priority=self.priority,
+            due_date=next_due_date,
+            due_window_start=self.due_window_start,
+            due_window_end=self.due_window_end,
+            is_mandatory=self.is_mandatory,
+            is_completed=False,
+            frequency=self.frequency
+        )
 
     def update_task(self, **details: Any) -> None:
         """Update task attributes."""
@@ -299,7 +452,114 @@ class Scheduler:
         
         return scheduled, unscheduled
 
+    def sort_by_time(self, tasks: list[CareTask]) -> list[CareTask]:
+        """Sort tasks by their due time window start time.
+        
+        Tasks with earlier time windows are prioritized first.
+        Tasks without time windows are placed at the end.
+        """
+        def time_sort_key(task: CareTask) -> tuple:
+            # Return tuple: (has_window, start_time, task_id)
+            # Tasks with windows sort first, then by start time
+            if task.due_window_start:
+                return (0, task.due_window_start, task.task_id)
+            else:
+                return (1, time.max, task.task_id)
+        
+        return sorted(tasks, key=time_sort_key)
+
+    def sort_time_strings(self, time_strings: list[str]) -> list[str]:
+        """Sort time strings in 'HH:MM' format using a lambda key function.
+        
+        Args:
+            time_strings: List of time strings like ['14:30', '09:15', '18:00']
+        
+        Returns:
+            Sorted list of time strings in chronological order
+        
+        Example:
+            >>> scheduler = Scheduler()
+            >>> times = ['14:30', '09:15', '18:00', '12:45']
+            >>> scheduler.sort_time_strings(times)
+            ['09:15', '12:45', '14:30', '18:00']
+        """
+        return sorted(time_strings, key=lambda t: tuple(map(int, t.split(':'))))
+
     def produce_unscheduled_list(self, tasks: list[CareTask], scheduled: list[CareTask]) -> list[CareTask]:
         """Return tasks that were not scheduled."""
         scheduled_ids = {t.task_id for t in scheduled}
         return [t for t in tasks if t.task_id not in scheduled_ids]
+
+    def detect_conflicts(self, scheduled_items: list[tuple[CareTask, time, time]]) -> list[str]:
+        """Detect time conflicts in scheduled items (lightweight, non-crashing detection).
+        
+        This method checks if any two tasks overlap in time and returns warning messages
+        instead of raising exceptions. Useful for generating reports or warnings without
+        stopping the scheduling process.
+        
+        Args:
+            scheduled_items: List of (task, start_time, end_time) tuples
+        
+        Returns:
+            List of warning messages (empty if no conflicts detected)
+        
+        Example:
+            >>> scheduled = [(task1, time(9,0), time(9,30)), (task2, time(9,15), time(9,45))]
+            >>> conflicts = scheduler.detect_conflicts(scheduled)
+            >>> for warning in conflicts:
+            ...     print(warning)
+        """
+        warnings = []
+        
+        # Check each pair of scheduled items for overlap
+        for i in range(len(scheduled_items)):
+            for j in range(i + 1, len(scheduled_items)):
+                task1, start1, end1 = scheduled_items[i]
+                task2, start2, end2 = scheduled_items[j]
+                
+                # Check if times overlap
+                # Overlap occurs if: NOT (end1 <= start2 OR start1 >= end2)
+                if not (end1 <= start2 or start1 >= end2):
+                    # Calculate overlap duration
+                    overlap_start = max(start1, start2)
+                    overlap_end = min(end1, end2)
+                    
+                    overlap_minutes = (overlap_end.hour * 60 + overlap_end.minute) - \
+                                     (overlap_start.hour * 60 + overlap_start.minute)
+                    
+                    # Generate warning message
+                    warning = (
+                        f"⚠️  TIME CONFLICT DETECTED: "
+                        f"'{task1.title}' ({start1.strftime('%H:%M')}-{end1.strftime('%H:%M')}) "
+                        f"overlaps with '{task2.title}' ({start2.strftime('%H:%M')}-{end2.strftime('%H:%M')}) "
+                        f"for {overlap_minutes} minutes"
+                    )
+                    warnings.append(warning)
+        
+        return warnings
+
+    def detect_conflicts_across_pets(self, plans: list[DailyPlan]) -> dict[str, list[str]]:
+        """Detect conflicts across multiple pet daily plans (cross-pet scheduling).
+        
+        Useful for owners with multiple pets to see if their schedules have issues.
+        
+        Args:
+            plans: List of DailyPlan objects for different pets
+        
+        Returns:
+            Dictionary mapping pet name to list of conflict warnings
+        
+        Example:
+            >>> mochi_plan = scheduler.generate_plan(...)
+            >>> bella_plan = scheduler.generate_plan(...)
+            >>> cross_conflicts = scheduler.detect_conflicts_across_pets([mochi_plan, bella_plan])
+        """
+        conflicts_by_pet = {}
+        
+        for plan in plans:
+            pet_name = plan.pet.name
+            warnings = self.detect_conflicts(plan.scheduled_items)
+            if warnings:
+                conflicts_by_pet[pet_name] = warnings
+        
+        return conflicts_by_pet

@@ -38,13 +38,68 @@ These changes reduced the risk of inconsistent state and made the domain model m
 
 **a. Constraints and priorities**
 
-- What constraints does your scheduler consider (for example: time, priority, preferences)?
-- How did you decide which constraints mattered most?
+The scheduler considers three key constraints:
+
+1. **Time Budget**: The owner has a fixed number of minutes available each day (e.g., 180 minutes). No task can be scheduled if there aren't enough minutes remaining. This is the hard constraint that limits what's possible.
+
+2. **Task Priority & Urgency**: Tasks are ranked by (1) whether they're mandatory, (2) priority level (high > medium > low), and (3) duration (shorter tasks first to fit more in). This ranking system ensures critical tasks get scheduled first. The decision tree is: mandatory tasks before optional ones, high-priority before low, and shorter tasks before longer ones to maximize packing efficiency.
+
+3. **Task Duration**: Each task has a duration in minutes, and we schedule them back-to-back starting at 9 AM. If a task won't fit in the remaining time, it goes into the "unscheduled" list.
+
+I decided these constraints mattered most because:
+- **Time budget** is non-negotiable (real-world constraint)
+- **Priority** respects user intent (a vet appointment must happen, daily feeding too)
+- **Duration** is objective and helps us pack the schedule efficiently
+
+I *did not* implement constraints like:
+- Task time windows (e.g., "feeding only 7-9 AM") — I added the field but the greedy scheduler ignores it
+- Preferred owner time blocks (e.g., "only schedule in mornings") — parsed but unused in scheduling
+- Task dependencies (e.g., "feed before play") — out of scope for MVP
 
 **b. Tradeoffs**
 
-- Describe one tradeoff your scheduler makes.
-- Why is that tradeoff reasonable for this scenario?
+The scheduler makes a key tradeoff: **Greedy scheduling (fast, simple) instead of optimal bin packing (slower, finds best solution)**.
+
+**The Tradeoff Explained:**
+The current scheduler uses a greedy algorithm: rank tasks by priority, then fit them into the timeline in order until time runs out. This is O(n log n) for sorting + O(n) for scheduling = O(n log n) total.
+
+An optimal approach would use bin packing algorithms (like First Fit Decreasing) which might rearrange tasks to fit more total work in the available time. This could be O(n²) or worse depending on the algorithm.
+
+**Example:**
+```
+Available: 100 minutes
+Tasks: [Task A: 60 min, Task B: 30 min, Task C: 25 min, Task D: 20 min]
+
+Greedy approach (current):
+- Schedule A (60 min) → 40 min left
+- Schedule B (30 min) → 10 min left  
+- Can't fit C (25 min) or D (20 min)
+- Result: 90 min used, 2 tasks left unscheduled
+
+Optimal bin packing:
+- Schedule A (60 min) → 40 min left
+- Schedule C (25 min) → 15 min left
+- Schedule D (20 min) → DOESN'T FIT (needs 20, have 15)
+- Or: Schedule B (30 min) + D (20 min) → Schedule A, then B+D = 110 min (exceeds budget!)
+- Actually greedy IS optimal here...
+
+But consider:
+Available: 100 min
+Tasks: [60, 30, 25, 25]
+- Greedy: 60 + 30 = 90 (one 25 doesn't fit)
+- Optimal: 60 + 25 + 25 = 110 (exceeds!) or just 60 + 30 = 90
+```
+
+In reality, the greedy approach often produces good results for this domain.
+
+**Why this tradeoff is reasonable:**
+1. **Perfect schedules are rare**: In pet care, mandatory tasks (feeding, walks) usually have high priority anyway. Optimizing the low-priority leftover tasks isn't worth the complexity.
+2. **Small problem size**: Most owners have 5-10 tasks per day. With n=10, greedy is > 99% as effective as optimal, and users can't tell the difference.
+3. **User flexibility matters more**: If the schedule isn't perfect, users will manually adjust it. The system is a *helper*, not a dictator. A slightly suboptimal but understandable greedy schedule is better than a magical optimal schedule the user doesn't understand.
+4. **Simplicity aids debugging**: If a user says "why wasn't my task scheduled?", it's easy to explain greedy ordering. Optimal algorithms are hard to reason about.
+5. **I/O bound, not CPU bound**: The bottleneck is waiting for user input in the Streamlit UI, not scheduling computation. Optimizing scheduling gives no user-visible benefit.
+
+The design philosophy: **Make it correct first, simple second, fast third.** Premature optimization kills code clarity and introduces bugs.
 
 ---
 

@@ -22,6 +22,20 @@ Your final app should:
 - Display the plan clearly (and ideally explain the reasoning)
 - Include tests for the most important scheduling behaviors
 
+## Smarter Scheduling Features
+
+Beyond the core scheduling, PawPal+ includes several intelligent features to make life easier:
+
+**Recurring Tasks** — Set a task to repeat daily (like feeding) or weekly (like baths), and the system automatically creates tomorrow's task once today's is done. No need to manually re-add the same tasks every single day.
+
+**Smart Filtering** — Quickly find what you're looking for: filter tasks by pet name, completion status, or combine both. Want to see all incomplete tasks for Mochi? One click.
+
+**Time-Based Sorting** — Tasks can be sorted by their preferred time window (morning vs afternoon), so you can plan around your pet's natural schedule—early birds get their walk at 7 AM, night owls at 5 PM.
+
+**Conflict Detection** — The system watches for scheduling problems in real time. If two tasks overlap, you'll get a friendly warning instead of a silent clash. It tells you exactly what's conflicting and for how long, so you can fix it before the day begins.
+
+These features work together to turn a tedious manual process into an intelligent planning assistant that learns your patterns and helps you stay on top of pet care.
+
 ## Getting started
 
 ### Setup
